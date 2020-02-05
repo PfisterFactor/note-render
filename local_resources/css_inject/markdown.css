@@ -1,0 +1,338 @@
+/*
+
+github.com style (c) Vasily Polovnyov <vast@whiteants.net>
+
+*/
+
+.markdown-body img {
+  max-height:100%;
+  max-width:100%;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+.markdown-body .theorem {
+  border-style: solid;
+  padding: 0.5em;
+  page-break-inside: avoid;
+}
+.markdown-body .theorem:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+.markdown-body span {
+  white-space:nowrap
+}
+.inline-math {
+  font-size: 0.9em;
+  page-break-inside: avoid;
+}
+strong .inline-math {
+  font-weight:bold;
+}
+.markdown-body p {
+  hyphens: none; 
+  word-wrap: break-word;
+}
+.hljs {
+  display: block;
+  overflow-x: auto;
+  padding: 0.5em;
+  color: #333;
+  background: #f8f8f8;
+  -webkit-text-size-adjust: none;
+}
+
+.hljs-comment,
+.diff .hljs-header,
+.hljs-javadoc {
+  color: #998;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.css .rule .hljs-keyword,
+.hljs-winutils,
+.nginx .hljs-title,
+.hljs-subst,
+.hljs-request,
+.hljs-status {
+  color: #333;
+  font-weight: bold;
+}
+
+.hljs-number,
+.hljs-hexcolor,
+.ruby .hljs-constant {
+  color: #008080;
+}
+
+.hljs-string,
+.hljs-tag .hljs-value,
+.hljs-phpdoc,
+.hljs-dartdoc,
+.tex .hljs-formula {
+  color: #d14;
+}
+
+.hljs-title,
+.hljs-id,
+.scss .hljs-preprocessor {
+  color: #900;
+  font-weight: bold;
+}
+
+.hljs-list .hljs-keyword,
+.hljs-subst {
+  font-weight: normal;
+}
+
+.hljs-class .hljs-title,
+.hljs-type,
+.vhdl .hljs-literal,
+.tex .hljs-command {
+  color: #458;
+  font-weight: bold;
+}
+
+.hljs-tag,
+.hljs-tag .hljs-title,
+.hljs-rules .hljs-property,
+.django .hljs-tag .hljs-keyword {
+  color: #000080;
+  font-weight: normal;
+}
+
+.hljs-attribute,
+.hljs-variable,
+.lisp .hljs-body {
+  color: #008080;
+}
+
+.hljs-regexp {
+  color: #009926;
+}
+
+.hljs-symbol,
+.ruby .hljs-symbol .hljs-string,
+.lisp .hljs-keyword,
+.clojure .hljs-keyword,
+.scheme .hljs-keyword,
+.tex .hljs-special,
+.hljs-prompt {
+  color: #990073;
+}
+
+.hljs-built_in {
+  color: #0086b3;
+}
+
+.hljs-preprocessor,
+.hljs-pragma,
+.hljs-pi,
+.hljs-doctype,
+.hljs-shebang,
+.hljs-cdata {
+  color: #999;
+  font-weight: bold;
+}
+
+.hljs-deletion {
+  background: #fdd;
+}
+
+.hljs-addition {
+  background: #dfd;
+}
+
+.diff .hljs-change {
+  background: #0086b3;
+}
+
+.hljs-chunk {
+  color: #aaa;
+}
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  position: relative;
+}
+
+h1:hover .header-link:before,
+h2:hover .header-link:before,
+h3:hover .header-link:before,
+h4:hover .header-link:before,
+h5:hover .header-link:before,
+h6:hover .header-link:before {
+    content: "\00B6";/* pilcrow */
+    color: #888;
+    font-size: smaller;
+}
+
+.header-link {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+
+  position: absolute;
+  top: 0;
+  left: -0.7em;
+  display: block;
+  padding-right: 1em;
+}
+
+h1:hover .header-link,
+h2:hover .header-link,
+h3:hover .header-link,
+h4:hover .header-link,
+h5:hover .header-link,
+h6:hover .header-link {
+  display: inline-block;
+  text-decoration: none;
+}
+@import url(//fonts.googleapis.com/css?family=Vollkorn:400,400italic,700,700italic&subset=latin);
+
+html, body {
+        padding:1em;
+        margin:auto;
+        /*max-width:42em; */
+        background:#fefefe;
+  }
+body {
+  font: 1.3em "Vollkorn", Palatino, Times;
+  color: #333;
+  line-height: 1.6;
+  text-align: left;
+  }
+header, nav, article, footer {
+  width: 700px;
+  margin:0 auto;
+  }
+article {
+  margin-top: 4em;
+  margin-bottom: 4em;
+  min-height: 400px;
+  }
+footer {
+  margin-bottom:50px;
+  }
+video {
+  margin: 2em 0;
+  border:1px solid #ddd;
+  }
+
+nav {
+  font-size: .9em;
+  font-style: italic;
+  border-bottom: 1px solid #ddd;
+  padding: 1em 0;
+  }
+nav p {
+  margin: 0;
+  }
+
+/* Typography
+-------------------------------------------------------- */
+
+h1 {
+  margin-top: 0;
+  font-weight: normal;
+  }
+h2 {
+  font-weight: normal;
+  }
+h3 {
+  font-weight: normal;
+  font-style: italic;
+  margin-top:3em;
+  }
+p {
+  margin-top:0;
+  -webkit-hypens:auto;
+  -moz-hypens:auto;
+  hyphens:auto;
+  }
+ul {
+  list-style: square;
+  padding-left:1.2em;
+  }
+ol {
+  padding-left:1.2em;
+  }
+blockquote {
+  margin-left: 1em;
+  padding-left: 1em;
+  border-left: 1px solid #ddd;
+  }
+code {
+  font-family: "Consolas", "Menlo", "Monaco", monospace, serif;
+  font-size: .9em;
+  }
+a {
+  color: #2484c1;
+  text-decoration: none;
+  }
+a:hover {
+  text-decoration: underline;
+  }
+a img {
+  border:none;
+  }
+h1 a, h1 a:hover {
+  color: #333;
+  text-decoration: none;
+  }
+hr {
+  color : #ddd;
+  height : 1px;
+  margin: 2em 0;
+  border-top : solid 1px #ddd;
+  border-bottom : none;
+  border-left: 0;
+  border-right: 0;
+  }
+p#heart{
+  font-size: 2em;
+  line-height: 1;
+  text-align: center;
+  color: #ccc;
+  }
+.red {
+  color:#B50000;
+  }
+
+/* Home Page
+--------------------------- */
+
+body#index li {
+  margin-bottom: 1em;
+  }
+
+
+/* iPad
+-------------------------------------------------------- */
+@media only screen and (max-device-width: 1024px) {
+body {
+  font-size: 120%;
+  line-height: 1.4;
+  }
+} /* @iPad */
+
+/* iPhone
+-------------------------------------------------------- */
+@media only screen and (max-device-width: 480px) {
+body {
+  text-align: left;
+  }
+article, footer {
+  width: auto;
+  }
+article {
+  padding: 0 10px;
+  }
+} /* @iPhone */
