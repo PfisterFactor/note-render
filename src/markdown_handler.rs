@@ -3,7 +3,7 @@
         use regex::{Regex, Captures};
         use std::path::Path;
 
-        const MARKER_CHARACTER: char = '⁂';
+        pub const MARKER_CHARACTER: char = '⁂';
         lazy_static!{
         static ref INLINE_CODE_REGEX: Regex = Regex::new(r"\$\$([^\$]*)\$\$").unwrap();
         }
@@ -26,15 +26,6 @@
                 let parser = Parser::new_ext(&self.markdown_string,Options::ENABLE_STRIKETHROUGH);
                 let parser = parser.map(|event| {
                     match event {
-                        Event::Code(code) => {
-                            if code.contains(MARKER_CHARACTER) {
-                                let code = code.replace(MARKER_CHARACTER,"");
-                                Event::Html(CowStr::from(format!("<span class=\"inline-math\">{}</span>", code)))
-                            }
-                            else {
-                                Event::Code(code)
-                            }
-                        },
                         Event::Start(Tag::Image(linktype,dest,text)) => {
                             if linktype == LinkType::Inline {
                                 let dest = Path::new(dest.as_ref()).file_name();

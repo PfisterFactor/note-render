@@ -1,3 +1,4 @@
+#![feature(str_strip)]
 extern crate include_dir;
 extern crate web_view;
 extern crate neovim_lib;
@@ -12,6 +13,7 @@ mod noterender;
 mod neovim_handler;
 mod markdown_handler;
 mod filesystem_handler;
+mod incremental_dom;
 use std::*;
 use std::borrow::Borrow;
 use std::cell::RefCell;
@@ -50,7 +52,6 @@ fn main() {
     println!("Loading {:#?} into window...", file_path);
     let file = fs::read_to_string(&file_path).unwrap();
     noterender.get_markdown_handler().lock().expect("Couldn't get initial lock on markdown handler").load_markdown(&file);
-
     match view {
         Ok(view) => {
             thread::spawn(move || {

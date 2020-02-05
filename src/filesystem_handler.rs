@@ -1,61 +1,111 @@
 pub mod filesystem_handler {
+    use crate::markdown_handler::markdown_handler::MarkdownHandler;
     use hotwatch::Hotwatch;
     use simple_server::*;
-    use std::path::{PathBuf, Path};
-    use crate::markdown_handler::markdown_handler::MarkdownHandler;
-    use std::sync::{Mutex, Arc};
-    use std::time::Duration;
     use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::sync::{Arc, Mutex};
     use std::thread;
+    use std::time::Duration;
 
     pub struct FilesystemHandler {
         watching_path: PathBuf,
         hotwatch: Hotwatch,
         local_resource_server: Arc<Server>,
-        markdown_handler: Arc<Mutex<MarkdownHandler>>
+        markdown_handler: Arc<Mutex<MarkdownHandler>>,
     }
     impl FilesystemHandler {
-        pub fn new(watch_path: PathBuf, markdownhandle: Arc<Mutex<MarkdownHandler>>) -> FilesystemHandler {
-            let mut file_watcher = Hotwatch::new_with_custom_delay(Duration::new(0,0)).expect("Couldn't create file watcher");
+        pub fn new(
+            watch_path: PathBuf,
+            markdownhandle: Arc<Mutex<MarkdownHandler>>,
+        ) -> FilesystemHandler {
+            let mut file_watcher = Hotwatch::new_with_custom_delay(Duration::new(0, 0))
+                .expect("Couldn't create file watcher");
             let borrowed = markdownhandle.clone();
-            file_watcher.watch(&watch_path,  move |event| {
+            file_watcher.watch(&watch_path, move |event| {
                 match event {
                     hotwatch::Event::Write(file) => {
                         //dbg!("Write event received");
                         if let Ok(string_contents) = fs::read_to_string(&file) {
-                            borrowed.lock().expect("Couldn't get lock on markdown handler").load_markdown(&string_contents);
+                            borrowed
+                                .lock()
+                                .expect("Couldn't get lock on markdown handler")
+                                .load_markdown(&string_contents);
                         }
-                    },
+                    }
                     _ => {}
                 }
             });
             let file_path = watch_path.clone();
-            let server = Server::new(move |request,mut response| {
+            let server = Server::new(move |request, mut response| {
                 println!("Request received for {:#?}", request.uri().path());
                 let request_path = Path::new(request.uri().path()).to_path_buf();
                 let file_name = file_path.file_stem().unwrap();
-
-                let image_path = file_path.parent().unwrap()
-                    .join(format!("images/{}{}",file_name.to_str().unwrap(),request_path.to_str().unwrap()));
+                if let Some(ext) = request_path.extension() {
+                    let ext = ext.to_str().unwrap();
+                    if ext == "css" {
+                        let embedded_path = format!("css_inject/{}", request_path.file_name().unwrap().to_str().unwrap());
+                        match crate::PROJECT_DIR
+                            .get_file(format!("css_inject/{}", request_path.file_name().unwrap().to_str().unwrap())) {
+                            Some(file) => {
+                                return Ok(response.body(file.contents().to_vec())?);
+                            }
+                            None => {
+                                response.status(StatusCode::NOT_FOUND);
+                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
+                            }
+                        }
+                    } else if ext == "js" {
+                        let embedded_path = format!("javascript_inject/{}", request_path.file_name().unwrap().to_str().unwrap());
+                        match crate::PROJECT_DIR
+                            .get_file(embedded_path) {
+                            Some(file) => {
+                                return Ok(response.body(file.contents().to_vec())?);
+                            }
+                            None => {
+                                response.status(StatusCode::NOT_FOUND);
+                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
+                            }
+                        }
+                    } else if ext == "ttf" || ext == "woff" || ext == "woff2" {
+                        let embedded_path = format!("font_inject/{}", request_path.file_name().unwrap().to_str().unwrap());
+                        match crate::PROJECT_DIR
+                            .get_file(embedded_path) {
+                            Some(file) => {
+                                return Ok(response.body(file.contents().to_vec())?);
+                            }
+                            None => {
+                                response.status(StatusCode::NOT_FOUND);
+                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
+                            }
+                        }
+                    }
+                }
+                let image_path = file_path.parent().unwrap().join(format!(
+                    "images/{}{}",
+                    file_name.to_str().unwrap(),
+                    request_path.to_str().unwrap()
+                ));
                 let image_path = image_path.canonicalize();
-                println!("Response would be {:#?}", image_path);
-                let response_contents = image_path.and_then(|path| {
-                    fs::read(path)
-                });
+                let response_contents = image_path.and_then(|path| fs::read(path));
                 if let Ok(bytes) = response_contents {
                     Ok(response.body(bytes)?)
-                }
-                else {
+                } else {
                     response.status(StatusCode::NOT_FOUND);
                     Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
                 }
             });
-            return FilesystemHandler {watching_path: watch_path, hotwatch: file_watcher, local_resource_server: Arc::new(server),markdown_handler: markdownhandle}
+            return FilesystemHandler {
+                watching_path: watch_path,
+                hotwatch: file_watcher,
+                local_resource_server: Arc::new(server),
+                markdown_handler: markdownhandle,
+            };
         }
         pub fn spawn_resource_server(&self) {
             let server = self.local_resource_server.clone();
             thread::spawn(move || {
-                server.listen("127.0.0.1","8080");
+                server.listen("127.0.0.1", "8080");
             });
         }
         pub fn verify_file_argument(file_path: Option<PathBuf>) -> bool {
@@ -63,12 +113,13 @@ pub mod filesystem_handler {
                 return false;
             }
             let file_path = file_path.unwrap();
-            if file_path.extension().is_none() || file_path.extension().unwrap() != "mdl" || !file_path.exists() {
+            if file_path.extension().is_none()
+                || file_path.extension().unwrap() != "mdl"
+                || !file_path.exists()
+            {
                 return false;
             }
             return true;
         }
-
-
     }
 }

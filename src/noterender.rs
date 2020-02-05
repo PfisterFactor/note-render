@@ -9,6 +9,8 @@ pub mod noterender {
     use crate::markdown_handler::markdown_handler::MarkdownHandler;
     use std::path::Path;
     use std::cell::RefCell;
+    use crate::incremental_dom::incremental_dom::push_incremental_dom;
+    use pulldown_cmark::Event;
 
     pub enum JavascriptEvent {
         NONE,
@@ -43,8 +45,8 @@ pub mod noterender {
             };
         }
 
-        pub fn load_page(&mut self, html_string: String) {
-            self.loaded_page = Arc::new(html_string);
+        pub fn load_page(&mut self, incremental_dom: String) {
+            self.loaded_page = Arc::new(incremental_dom);
             self.load_html_into_webview();
         }
         pub fn get_markdown_handler(&self) -> Arc<Mutex<MarkdownHandler>> {
@@ -56,8 +58,7 @@ pub mod noterender {
             match &self.webview_handle {
                 Some(handle) => {
                     handle.dispatch(move |view| {
-                        view.eval(&format!("doDiffDom(String.raw`{}`)",loaded_page));
-                        //view.eval(&format!("document.body.innerHTML = String.raw`{}`", loaded_page));
+                        view.eval(&format!("doIncrementalDom(String.raw`{}`);",loaded_page));
                         view.eval("on_body_change()");
                         Ok(())
                     });
@@ -126,9 +127,9 @@ pub mod noterender {
                 if mutexguard.do_refresh {
                     mutexguard.do_refresh = false;
                     let parser = mutexguard.gen_parser();
-                    let mut html = String::new();
-                    pulldown_cmark::html::push_html(&mut html,parser);
-                    self.load_page(html);
+                    let mut incremental_dom_string= String::new();
+                    push_incremental_dom(&mut incremental_dom_string,parser);
+                    self.load_page(incremental_dom_string);
                 }
             };
         }

@@ -9,30 +9,28 @@ function disable_hyperlinks() {
 }
 
 
-function doDiffDom(newhtml) {
-    let parser = new DOMParser();
-    let parsed_html = parser.parseFromString("<body id=\"content\" class=\"markdown-body\" onload=\"on_ready()\">"+newhtml+"</body>","text/html");
-    let multi_line= parsed_html.getElementsByClassName("language-latex")
-    for (var i = 0; i < multi_line.length; i++) {
-        katex.render(multi_line[i].textContent,multi_line[i],{
-            displayMode: true
-        })
-    }
-    let inline = parsed_html.getElementsByClassName("inline-math")
-    for (var i = 0; i < inline.length; i++) {
-        katex.render(inline[i].textContent,inline[i],{
-            displayMode: false
-        });
-    }
-    let diff = diffD.diff(document.body,parsed_html.body);
-    diffD.apply(document.body,diff);
+function doIncrementalDom(dom_string) {
+    IncrementalDOM.patch(document.body,function() {
+        // Don't shoot me
+        window.eval(dom_string);
+    })
 }
-// Called every time load_html() is called in the rust code.
+// Called every time load_page() is called in the rust code.
 function on_body_change() {
 }
+// Helper function for rendering html blobs with incremental dom
+function html(content) {
+    const el = IncrementalDOM.elementOpen('html-blob');
+    if (el.__cachedInnerHtml !== content) {
+        el.__cachedInnerHtml = content;
+        el.innerHTML = content;
+    }
+    IncrementalDOM.skip();
+    IncrementalDOM.elementClose('html-blob');
+}
+
 
 function on_ready() {
-    window.diffD = new diffDOM.DiffDOM();
     external.invoke('ready');
 }
 disable_hyperlinks();
