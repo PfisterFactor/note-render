@@ -151,8 +151,8 @@ pub mod noterender {
 
             if file.path().extension().is_some() && file.path().extension().unwrap() == "css" {
                 inject_string.push_str(&format!(
-                    "<style type=\"text/css\">\n{}\n</style>\n",
-                    file.contents_utf8().expect(&format!("Could not parse {} as valid utf-8!", file.path().to_str().unwrap()))
+                    "<link rel=\"stylesheet\" href=\"http://127.0.0.1:8080/{}\"></style>\n",
+                    file.path().file_name().unwrap().to_str().unwrap()
                 ));
             }
         }
@@ -163,8 +163,8 @@ pub mod noterender {
         {
             if file.path().extension().is_some() && file.path().extension().unwrap() == "js" {
                     inject_string.push_str(&format!(
-                        "<script type=\"text/javascript\">\n{}\n</script>\n",
-                        file.contents_utf8().expect(&format!("Could not parse {} as valid utf-8!", file.path().to_str().unwrap()))
+                        "<script type=\"text/javascript\" src=\"http://127.0.0.1:8080/{}\"></script>\n",
+                        file.path().file_name().unwrap().to_str().unwrap()
                     ));
             }
         }

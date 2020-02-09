@@ -3,7 +3,9 @@
 github.com style (c) Vasily Polovnyov <vast@whiteants.net>
 
 */
-
+.markdown-body {
+    zoom: 0.75
+}
 .markdown-body img {
   max-height:100%;
   max-width:100%;
@@ -198,7 +200,7 @@ h6:hover .header-link {
 @import url(//fonts.googleapis.com/css?family=Vollkorn:400,400italic,700,700italic&subset=latin);
 
 html, body {
-        padding:1em;
+        padding:1.5em;
         margin:auto;
         /*max-width:42em; */
         background:#fefefe;

@@ -2,6 +2,7 @@ pub mod incremental_dom {
     use pulldown_cmark::{Event, Tag, Alignment, CowStr};
     use std::collections::HashMap;
     use std::borrow::Cow;
+    use katex::Opts;
 
     enum TableState {
         Head,
@@ -19,7 +20,6 @@ pub mod incremental_dom {
         table_alignments: Vec<Alignment>,
         table_cell_index: usize,
         numbers: HashMap<CowStr<'a>, usize>,
-        do_latex_render: bool
     }
     impl<'a,I> IncrementalDomWriter<'a,I> where I: Iterator<Item = Event<'a>> {
         pub fn new(s: &'a mut String, iter: I) -> IncrementalDomWriter<I>
@@ -30,8 +30,7 @@ pub mod incremental_dom {
                table_state: TableState::Head,
                table_alignments: vec![],
                table_cell_index: 0,
-               numbers: HashMap::new(),
-               do_latex_render: false
+               numbers: HashMap::new()
            }
         }
         fn escape_without_quotes(s: &str) -> String {
@@ -52,22 +51,17 @@ pub mod incremental_dom {
                     },
                     Event::Text(text) => {
                         let text = Self::escape_without_quotes(&text);
-                        if self.do_latex_render {
-                            self.incremental_dom.push_str(&format!(r#"html("${{katex.renderToString('{}', {{displayMode:true}}).replace(/"/g, '\\\"')}}");"#,text))
-                        }
-                        else {
-                            self.incremental_dom.push_str(&format!("window.IncrementalDOM.text('{}');",text));
-                        }
+                        self.incremental_dom.push_str(&format!("IncrementalDOM.text('{}');",text));
                     },
                     Event::Code(text) => {
                         let text = Self::escape_without_quotes(&text);
                         if let Some(text) = text.strip_prefix(crate::markdown_handler::markdown_handler::MARKER_CHARACTER) {
-                            self.incremental_dom.push_str(&format!(r#"html("<span class='inline-math'>${{katex.renderToString('{}', {{displayMode:false}}).replace(/"/g, '\\\"')}}</span>");"#,text))
+                            self.incremental_dom.push_str(&format!(r#"html('<span class="inline-math" style="visibility:hidden;">{}</span>');"#,text))
                         }
                         else {
-                            self.incremental_dom.push_str("window.IncrementalDOM.elementOpen('code',null,null);");
-                            self.incremental_dom.push_str(&format!("window.IncrementalDOM.text('{}');",text));
-                            self.incremental_dom.push_str("window.IncrementalDOM.elementClose('code');");
+                            self.incremental_dom.push_str("IncrementalDOM.elementOpen('code',null,null);");
+                            self.incremental_dom.push_str(&format!("IncrementalDOM.text('{}');",text));
+                            self.incremental_dom.push_str("IncrementalDOM.elementClose('code');");
                         }
                     },
                     Event::Html(text) => {
@@ -75,28 +69,28 @@ pub mod incremental_dom {
                         self.incremental_dom.push_str(&format!("html('{}');",text));
                     },
                     Event::SoftBreak => {
-                        self.incremental_dom.push_str("window.IncrementalDOM.elementVoid('br',null,null);");
+                        self.incremental_dom.push_str("IncrementalDOM.elementVoid('br',null,null);");
                     },
                     Event::HardBreak => {
-                        self.incremental_dom.push_str("window.IncrementalDOM.elementVoid('br',null,null);");
+                        self.incremental_dom.push_str("IncrementalDOM.elementVoid('br',null,null);");
                     },
                     Event::Rule => {
-                        self.incremental_dom.push_str("window.IncrementalDOM.elementVoid('hr',null,null);");
+                        self.incremental_dom.push_str("IncrementalDOM.elementVoid('hr',null,null);");
                     },
                     Event::FootnoteReference(name) => {
                         let encoded_name = htmlescape::encode_attribute(&name);
                         let len = self.numbers.len() + 1;
-                        self.incremental_dom.push_str("window.IncrementalDOM.elementOpen('sup',null,null,'class','footnote-reference');");
-                        self.incremental_dom.push_str(&format!("window.IncrementalDOM.elementOpen('a', null,null,'href','#{}",encoded_name));
+                        self.incremental_dom.push_str("IncrementalDOM.elementOpen('sup',null,null,'class','footnote-reference');");
+                        self.incremental_dom.push_str(&format!("IncrementalDOM.elementOpen('a', null,null,'href','#{}",encoded_name));
                         let number = *self.numbers.entry(name).or_insert(len);
-                        self.incremental_dom.push_str(&format!("window.IncrementalDOM.text('{}');",number));
-                        self.incremental_dom.push_str("window.IncrementalDOM.elementClose('a');window.IncrementalDOM.elementClose('sup');");
+                        self.incremental_dom.push_str(&format!("IncrementalDOM.text('{}');",number));
+                        self.incremental_dom.push_str("IncrementalDOM.elementClose('a');IncrementalDOM.elementClose('sup');");
                     },
                     Event::TaskListMarker(true) => {
-                        self.incremental_dom.push_str("window.IncrementalDOM.elementVoid('input',null,null,'disabled','','type','checkbox','checked','');")
+                        self.incremental_dom.push_str("IncrementalDOM.elementVoid('input',null,null,'disabled','','type','checkbox','checked','');")
                     },
                     Event::TaskListMarker(false) => {
-                        self.incremental_dom.push_str("window.IncrementalDOM.elementVoid('input',null,null,'disabled','','type','checkbox');")
+                        self.incremental_dom.push_str("IncrementalDOM.elementVoid('input',null,null,'disabled','','type','checkbox');")
                     }
                 }
             }
@@ -104,70 +98,85 @@ pub mod incremental_dom {
         fn start_tag(&mut self, tag: Tag<'a>) -> String {
             match tag {
                 Tag::Paragraph => {
-                    "window.IncrementalDOM.elementOpen('p',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('p',null,null);".to_string()
                 },
                 Tag::CodeBlock(info) => {
                     let lang = info.split(' ').next().unwrap();
                     if lang == "latex" {
-                        self.do_latex_render = true;
+                        let text = self.iter.next().unwrap();
+                        self.iter.next(); // Get rid of end of code block tag
+                        if let Event::Text(t) = text {
+
+                            let mut lines = 1;
+                            t.match_indices(r#"\\"#).for_each(|_| lines +=1);
+                            let height = 70*lines;
+
+                            let t = Self::escape_without_quotes(&t);
+                            format!(r#"html('<div class="display-math" style="visibility:hidden;height:{}px;">{}</div>');"#,height,&t)
+                        }
+                        else {
+                            panic!("Fuck");
+                        }
                     }
-                    format!("window.IncrementalDOM.elementOpen('pre',null,null);window.IncrementalDOM.elementOpen('code',null,null,'class','language-{}');",lang)
+                    else {
+                        format!("IncrementalDOM.elementOpen('pre',null,null);IncrementalDOM.elementOpen('code',null,null,'class','language-{}');",lang)
+                    }
                 },
                 Tag::Image(linktype,url,title) => {
-                    format!("window.IncrementalDOM.elementOpen('img',null,null,'src','{}','alt','{}','title','{}');",url,self.raw_text(),title) +
-                        "window.IncrementalDOM.elementClose('img');"
+                    format!("IncrementalDOM.elementOpen('img',null,null,'src','{}','alt','{}','title','{}');",url,self.raw_text(),title) +
+                        "IncrementalDOM.elementClose('img');"
                 },
                 Tag::BlockQuote => {
-                    "window.IncrementalDOM.elementOpen('blockquote',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('blockquote',null,null);".to_string()
                 },
                 Tag::Emphasis => {
-                    "window.IncrementalDOM.elementOpen('em',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('em',null,null);".to_string()
                 },
                 Tag::FootnoteDefinition(name) => {
                     let encoded_name = htmlescape::encode_attribute(&name);
                     let len = self.numbers.len() + 1;
                     let number = *self.numbers.entry(name).or_insert(len);
-                    format!("window.IncrementalDOM.elementOpen('div',null,null,'class','footnote-definition','id','{};",encoded_name)
-                        + "window.IncrementalDOM.elementOpen('sup',null,null,'class','footnote-definition-label');"
-                        + &format!("window.IncrementalDOM.text('{}');",number)
-                        + "window.IncrementalDOM.elementClose('sup');"
+                    format!("IncrementalDOM.elementOpen('div',null,null,'class','footnote-definition','id','{};",encoded_name)
+                        + "IncrementalDOM.elementOpen('sup',null,null,'class','footnote-definition-label');"
+                        + &format!("IncrementalDOM.text('{}');",number)
+                        + "IncrementalDOM.elementClose('sup');"
                 },
                 Tag::Heading(size) => {
-                    format!("window.IncrementalDOM.elementOpen('h{}',null,null);",size)
+                    format!("IncrementalDOM.elementOpen('h{}',null,null);",size)
                 },
                 Tag::Item => {
-                   "window.IncrementalDOM.elementOpen('li',null,null);".to_string()
+                   "IncrementalDOM.elementOpen('li',null,null);".to_string()
                 },
                 Tag::Link(linktype,dest,title) => {
                     "".to_string() // No links
                 },
                 Tag::List(Some(1)) => {
-                    "window.IncrementalDOM.elementOpen('ol',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('ol',null,null);".to_string()
                 },
                 Tag::List(Some(start)) => {
-                    format!("window.IncrementalDOM.elementOpen('ol',null,null,'start','{}');",start)
+                    format!("IncrementalDOM.elementOpen('ol',null,null,'start','{}');",start)
                 },
                 Tag::List(None) => {
-                    "window.IncrementalDOM.elementOpen('ul',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('ul',null,null);".to_string()
                 },
                 Tag::Strikethrough => {
-                    "window.IncrementalDOM.elementOpen('del',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('del',null,null);".to_string()
                 },
                 Tag::Strong => {
-                    "window.IncrementalDOM.elementOpen('strong',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('strong',null,null);".to_string()
                 },
                 Tag::Table(alignment) => {
                     self.table_alignments = alignment;
-                    "window.IncrementalDOM.elementOpen('table',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('table',null,null);".to_string()
                 },
                 Tag::TableHead => {
                     self.table_state = TableState::Head;
                     self.table_cell_index = 0;
-                    concat!("window.IncrementalDOM.elementOpen('thead',null,null);","window.IncrementalDOM.elementOpen('tr',null,null);").to_string()
+                    concat!("IncrementalDOM.elementOpen('thead',null,null);","IncrementalDOM.elementOpen('tr',null,null);").to_string()
                 },
                 Tag::TableRow => {
                     self.table_cell_index = 0;
-                    "window.IncrementalDOM.elementOpen('tr',null,null);".to_string()
+                    "IncrementalDOM.elementOpen('tr',null,null);".to_string()
                 },
                 Tag::TableCell => {
                     let tag = match self.table_state {
@@ -180,64 +189,63 @@ pub mod incremental_dom {
                         Some(&Alignment::Right) => "right",
                         _ => ""
                     };
-                    format!("window.IncrementalDOM.elementOpen('{}',null,null,'align','{}');",tag,align)
+                    format!("IncrementalDOM.elementOpen('{}',null,null,'align','{}');",tag,align)
                 }
             }
         }
         fn end_tag(&mut self, tag: Tag<'a>) -> String {
             match tag {
                 Tag::Paragraph => {
-                    "window.IncrementalDOM.elementClose('p');".to_string()
+                    "IncrementalDOM.elementClose('p');".to_string()
                 },
                 Tag::Heading(size) => {
-                    format!("window.IncrementalDOM.elementClose('h{}');",size)
+                    format!("IncrementalDOM.elementClose('h{}');",size)
                 },
                 Tag::Table(_) => {
-                    "window.IncrementalDOM.elementClose('tbody');window.IncrementalDOM.elementClose('table');".to_string()
+                    "IncrementalDOM.elementClose('tbody');IncrementalDOM.elementClose('table');".to_string()
                 },
                 Tag::TableHead => {
                     self.table_state = TableState::Body;
-                    "window.IncrementalDOM.elementClose('tr');window.IncrementalDOM.elementClose('thead');window.IncrementalDOM.elementOpen('tbody',null,null);".to_string()
+                    "IncrementalDOM.elementClose('tr');IncrementalDOM.elementClose('thead');IncrementalDOM.elementOpen('tbody',null,null);".to_string()
 
                 },
                 Tag::TableRow => {
-                    "window.IncrementalDOM.elementClose('tr');".to_string()
+                    "IncrementalDOM.elementClose('tr');".to_string()
                 },
                 Tag::TableCell => {
                     self.table_cell_index += 1;
                     match self.table_state {
                         TableState::Head => {
-                            "window.IncrementalDOM.elementClose('th');"
+                            "IncrementalDOM.elementClose('th');"
                         }
                         TableState::Body => {
-                            "window.IncrementalDOM.elementClose('td');"
+                            "IncrementalDOM.elementClose('td');"
                         }
                     }.to_string()
                 },
                 Tag::BlockQuote => {
-                    "window.IncrementalDOM.elementClose('blockquote');".to_string()
+                    "IncrementalDOM.elementClose('blockquote');".to_string()
                 },
                 Tag::CodeBlock(_) => {
-                    self.do_latex_render = false;
-                    "window.IncrementalDOM.elementClose('code');window.IncrementalDOM.elementClose('pre');".to_string()
+                    "IncrementalDOM.elementClose('code');IncrementalDOM.elementClose('pre');".to_string()
                 },
                 Tag::List(Some(_)) => {
-                    "window.IncrementalDOM.elementClose('ol');".to_string()
+                    "IncrementalDOM.elementClose('ol');".to_string()
                 },
                 Tag::List(None) => {
-                    "window.IncrementalDOM.elementClose('ul');".to_string()
+                    "IncrementalDOM.elementClose('ul');".to_string()
                 },
                 Tag::Item => {
-                    "window.IncrementalDOM.elementClose('li');".to_string()
+                    "IncrementalDOM.elementClose('li');".to_string()
                 },
                 Tag::Emphasis => {
-                    "window.IncrementalDOM.elementClose('em');".to_string()
+                    "IncrementalDOM.elementClose('em');".to_string()
                 },
                 Tag::Strong => {
-                    "window.IncrementalDOM.elementClose('strong');".to_string()
+                    "IncrementalDOM.elementClose('strong');".to_string()
                 },
                 Tag::Strikethrough => {
-                    "window.IncrementalDOM.elementClose('del');".to_string()
+                    "IncrementalDOM.elementClose('del');".to_string()
                 },
                 Tag::Link(_,_,_) => {
                     "".to_string() // No links
@@ -246,7 +254,7 @@ pub mod incremental_dom {
                     "".to_string() // handled in start
                 },
                 Tag::FootnoteDefinition(_) => {
-                    "window.IncrementalDOM.elementClose('div');".to_string()
+                    "IncrementalDOM.elementClose('div');".to_string()
                 }
             }
         }
