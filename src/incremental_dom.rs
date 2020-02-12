@@ -56,7 +56,7 @@ pub mod incremental_dom {
                     Event::Code(text) => {
                         let text = Self::escape_without_quotes(&text);
                         if let Some(text) = text.strip_prefix(crate::markdown_handler::markdown_handler::MARKER_CHARACTER) {
-                            self.incremental_dom.push_str(&format!(r#"html('<span class="inline-math" style="visibility:hidden;">{}</span>');"#,text))
+                            self.incremental_dom.push_str(&format!(r#"inline_math('{}');"#,text))
                         }
                         else {
                             self.incremental_dom.push_str("IncrementalDOM.elementOpen('code',null,null);");
@@ -107,12 +107,14 @@ pub mod incremental_dom {
                         self.iter.next(); // Get rid of end of code block tag
                         if let Event::Text(t) = text {
 
+                            // Guess how big the equation will be from the amount of lines
+                            // Done to prevent reflowing
                             let mut lines = 1;
                             t.match_indices(r#"\\"#).for_each(|_| lines +=1);
                             let height = 70*lines;
 
                             let t = Self::escape_without_quotes(&t);
-                            format!(r#"html('<div class="display-math" style="visibility:hidden;height:{}px;">{}</div>');"#,height,&t)
+                            format!(r#"display_math('{}');"#,t)
                         }
                         else {
                             panic!("Fuck");

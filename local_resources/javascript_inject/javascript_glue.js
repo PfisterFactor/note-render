@@ -19,22 +19,31 @@ function doIncrementalDom(dom_string) {
 // Renders only equations that have changed, a new node will be created if any "html()" content changes, meaning we can detect when an equation has changed
 // by looking at if our "math_was_rendered" variable is defined
 function on_body_change() {
-        let math = document.body.getElementsByClassName("inline-math");
-        let display_math = document.body.getElementsByClassName("display-math");
-        for (let i = 0; i < math.length; i++) {
-            if (math[i].math_was_rendered === undefined || math[i].math_was_rendered === false) {
-                math[i].style.visibility = "visible";
-                katex.render(math[i].textContent, math[i], {displayMode: false});
+        let inline_math = document.body.getElementsByClassName("hidden-inline-math");
+        let display_math = document.body.getElementsByClassName("hidden-display-math");
+        for (let i = 0; i < inline_math.length; i++) {
+            let math_element = inline_math[i].nextElementSibling;
+            if (math_element === null || math_element.className !== "inline-math") {
+                math_element = document.createElement("span");
+                math_element.className = "inline-math";
+                inline_math[i].parentNode.insertBefore(math_element,inline_math[i].nextSibling);
             }
-            math[i].math_was_rendered = true
+            if (inline_math[i].doRender === true) {
+                katex.render(inline_math[i].textContent, math_element, {displayMode: false});
+                inline_math[i].doRender = false;
+            }
         }
         for (let i = 0; i < display_math.length; i++) {
-            if (display_math[i].math_was_rendered === undefined || display_math[i].math_was_rendered === false) {
-                display_math[i].style.height = "auto";
-                display_math[i].style.visibility = "visible";
-                katex.render(display_math[i].textContent, display_math[i], {displayMode: true});
+            let math_element = display_math[i].nextElementSibling;
+            if (math_element === null || math_element.className !== "display-math") {
+                math_element = document.createElement("div");
+                math_element.className = "display-math";
+                display_math[i].parentNode.insertBefore(math_element,display_math[i].nextSibling);
             }
-            display_math[i].math_was_rendered = true;
+            if (display_math[i].doRender === true) {
+                katex.render(display_math[i].textContent, math_element, {displayMode: true});
+                display_math[i].doRender = false;
+            }
         }
 
 
@@ -48,6 +57,28 @@ function html(content) {
     }
     IncrementalDOM.skip();
     IncrementalDOM.elementClose('html-blob');
+}
+
+function textChanged(content) {
+    IncrementalDOM.currentElement().doRender = true;
+    return content;
+}
+
+function display_math(content) {
+    IncrementalDOM.elementOpen("div",null,null,"class","hidden-display-math","style","display: none;");
+    IncrementalDOM.text(content,textChanged);
+    IncrementalDOM.elementClose('div');
+    if (IncrementalDOM.currentPointer().className === "display-math") {
+        IncrementalDOM.skipNode();
+    }
+}
+function inline_math(content) {
+    IncrementalDOM.elementOpen("span",null,null,"class","hidden-inline-math","style","display: none;");
+    IncrementalDOM.text(content,textChanged);
+    IncrementalDOM.elementClose('span');
+    if (IncrementalDOM.currentPointer() !== null && IncrementalDOM.currentPointer().className === "inline-math") {
+        IncrementalDOM.skipNode();
+    }
 }
 
 
