@@ -44,39 +44,48 @@ pub mod filesystem_handler {
                 if let Some(ext) = request_path.extension() {
                     let ext = ext.to_str().unwrap();
                     if ext == "css" {
-                        let embedded_path = format!("css_inject/{}", request_path.file_name().unwrap().to_str().unwrap());
-                        match crate::PROJECT_DIR
-                            .get_file(format!("css_inject/{}", request_path.file_name().unwrap().to_str().unwrap())) {
+                        let embedded_path = format!(
+                            "css_inject/{}",
+                            request_path.file_name().unwrap().to_str().unwrap()
+                        );
+                        match crate::PROJECT_DIR.get_file(format!(
+                            "css_inject/{}",
+                            request_path.file_name().unwrap().to_str().unwrap()
+                        )) {
                             Some(file) => {
                                 return Ok(response.body(file.contents().to_vec())?);
                             }
                             None => {
                                 response.status(StatusCode::NOT_FOUND);
-                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
+                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?);
                             }
                         }
                     } else if ext == "js" {
-                        let embedded_path = format!("javascript_inject/{}", request_path.file_name().unwrap().to_str().unwrap());
-                        match crate::PROJECT_DIR
-                            .get_file(embedded_path) {
+                        let embedded_path = format!(
+                            "javascript_inject/{}",
+                            request_path.file_name().unwrap().to_str().unwrap()
+                        );
+                        match crate::PROJECT_DIR.get_file(embedded_path) {
                             Some(file) => {
                                 return Ok(response.body(file.contents().to_vec())?);
                             }
                             None => {
                                 response.status(StatusCode::NOT_FOUND);
-                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
+                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?);
                             }
                         }
                     } else if ext == "ttf" || ext == "woff" || ext == "woff2" {
-                        let embedded_path = format!("font_inject/{}", request_path.file_name().unwrap().to_str().unwrap());
-                        match crate::PROJECT_DIR
-                            .get_file(embedded_path) {
+                        let embedded_path = format!(
+                            "font_inject/{}",
+                            request_path.file_name().unwrap().to_str().unwrap()
+                        );
+                        match crate::PROJECT_DIR.get_file(embedded_path) {
                             Some(file) => {
                                 return Ok(response.body(file.contents().to_vec())?);
                             }
                             None => {
                                 response.status(StatusCode::NOT_FOUND);
-                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
+                                return Ok(response.body("<p>404</p>".as_bytes().to_vec())?);
                             }
                         }
                     }

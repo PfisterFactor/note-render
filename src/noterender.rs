@@ -2,15 +2,12 @@ pub mod noterender {
     use std::collections::VecDeque;
     use std::sync::{Arc, Mutex};
 
+    use hotwatch::Hotwatch;
     use web_view::*;
 
-    use crate::PROJECT_DIR;
-    use hotwatch::Hotwatch;
-    use crate::markdown_handler::markdown_handler::MarkdownHandler;
-    use std::path::Path;
-    use std::cell::RefCell;
     use crate::incremental_dom::incremental_dom::push_incremental_dom;
-    use pulldown_cmark::Event;
+    use crate::markdown_handler::markdown_handler::MarkdownHandler;
+    use crate::PROJECT_DIR;
 
     pub enum JavascriptEvent {
         NONE,
@@ -32,7 +29,7 @@ pub mod noterender {
         event_queue: Arc<Mutex<VecDeque<JavascriptEvent>>>,
         loaded_page: Arc<String>,
         file_watcher: Hotwatch,
-        markdownhandler: Arc<Mutex<MarkdownHandler>>
+        markdownhandler: Arc<Mutex<MarkdownHandler>>,
     }
     impl NoteRender {
         pub fn new() -> NoteRender {
@@ -41,7 +38,7 @@ pub mod noterender {
                 event_queue: Arc::new(Mutex::new(VecDeque::new())),
                 loaded_page: Arc::new("".to_string()),
                 file_watcher: Hotwatch::new().expect("Couldn't instantiate file watcher"),
-                markdownhandler: Arc::new(Mutex::new(MarkdownHandler::new("")))
+                markdownhandler: Arc::new(Mutex::new(MarkdownHandler::new(""))),
             };
         }
 
@@ -58,8 +55,8 @@ pub mod noterender {
             match &self.webview_handle {
                 Some(handle) => {
                     handle.dispatch(move |view| {
-                        view.eval(&format!("doIncrementalDom(String.raw`{}`);",loaded_page));
-                        view.eval("on_body_change()");
+                        view.eval(&format!("doIncrementalDom(String.raw`{}`);", loaded_page))?;
+                        view.eval("on_body_change()")?;
                         Ok(())
                     });
                 }
@@ -71,9 +68,7 @@ pub mod noterender {
             let event_queue_ref = self.event_queue.clone();
             let view = web_view::builder()
                 .title("Note Renderer")
-                .content(Content::Html(inject_resources(
-                    &self.loaded_page.clone(),
-                )))
+                .content(Content::Html(inject_resources(&self.loaded_page.clone())))
                 .size(320, 480)
                 .resizable(true)
                 .user_data(JavascriptEvent::NONE)
@@ -127,8 +122,8 @@ pub mod noterender {
                 if mutexguard.do_refresh {
                     mutexguard.do_refresh = false;
                     let parser = mutexguard.gen_parser();
-                    let mut incremental_dom_string= String::new();
-                    push_incremental_dom(&mut incremental_dom_string,parser);
+                    let mut incremental_dom_string = String::new();
+                    push_incremental_dom(&mut incremental_dom_string, parser);
                     self.load_page(incremental_dom_string);
                 }
             };
@@ -148,7 +143,6 @@ pub mod noterender {
             .expect("Couldn't access embedded css_inject resources.")
             .files()
         {
-
             if file.path().extension().is_some() && file.path().extension().unwrap() == "css" {
                 inject_string.push_str(&format!(
                     "<link rel=\"stylesheet\" href=\"http://127.0.0.1:8080/{}\"></style>\n",
@@ -162,10 +156,10 @@ pub mod noterender {
             .files()
         {
             if file.path().extension().is_some() && file.path().extension().unwrap() == "js" {
-                    inject_string.push_str(&format!(
-                        "<script type=\"text/javascript\" src=\"http://127.0.0.1:8080/{}\"></script>\n",
-                        file.path().file_name().unwrap().to_str().unwrap()
-                    ));
+                inject_string.push_str(&format!(
+                    "<script type=\"text/javascript\" src=\"http://127.0.0.1:8080/{}\"></script>\n",
+                    file.path().file_name().unwrap().to_str().unwrap()
+                ));
             }
         }
         return format!(

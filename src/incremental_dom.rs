@@ -1,19 +1,19 @@
 pub mod incremental_dom {
-    use pulldown_cmark::{Event, Tag, Alignment, CowStr};
     use std::collections::HashMap;
-    use std::borrow::Cow;
-    use katex::Opts;
+
+    use pulldown_cmark::{Alignment, CowStr, Event, Tag};
 
     enum TableState {
         Head,
         Body,
     }
-    pub fn push_incremental_dom<'a,I>(s: &'a mut String, iter: I)
-    where I: Iterator<Item =Event<'a>>
+    pub fn push_incremental_dom<'a, I>(s: &'a mut String, iter: I)
+    where
+        I: Iterator<Item = Event<'a>>,
     {
-       IncrementalDomWriter::new(s,iter).run();
+        IncrementalDomWriter::new(s, iter).run();
     }
-    struct IncrementalDomWriter<'a,I> {
+    struct IncrementalDomWriter<'a, I> {
         iter: I,
         incremental_dom: &'a mut String,
         table_state: TableState,
@@ -21,23 +21,27 @@ pub mod incremental_dom {
         table_cell_index: usize,
         numbers: HashMap<CowStr<'a>, usize>,
     }
-    impl<'a,I> IncrementalDomWriter<'a,I> where I: Iterator<Item = Event<'a>> {
-        pub fn new(s: &'a mut String, iter: I) -> IncrementalDomWriter<I>
-        {
-           Self {
-               iter,
-               incremental_dom: s,
-               table_state: TableState::Head,
-               table_alignments: vec![],
-               table_cell_index: 0,
-               numbers: HashMap::new()
-           }
+    impl<'a, I> IncrementalDomWriter<'a, I>
+    where
+        I: Iterator<Item = Event<'a>>,
+    {
+        pub fn new(s: &'a mut String, iter: I) -> IncrementalDomWriter<I> {
+            Self {
+                iter,
+                incremental_dom: s,
+                table_state: TableState::Head,
+                table_alignments: vec![],
+                table_cell_index: 0,
+                numbers: HashMap::new(),
+            }
         }
         fn escape_without_quotes(s: &str) -> String {
-            s.replace("\n","").replace("\\","\\\\").replace("\"","\\\"").replace("\'","\\'")
+            s.replace("\n", "")
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\'", "\\'")
         }
-        fn run(&mut self)
-        {
+        fn run(&mut self) {
             self.incremental_dom.clear();
             while let Some(event) = self.iter.next() {
                 match event {
@@ -197,72 +201,48 @@ pub mod incremental_dom {
         }
         fn end_tag(&mut self, tag: Tag<'a>) -> String {
             match tag {
-                Tag::Paragraph => {
-                    "IncrementalDOM.elementClose('p');".to_string()
-                },
-                Tag::Heading(size) => {
-                    format!("IncrementalDOM.elementClose('h{}');",size)
-                },
+                Tag::Paragraph => "IncrementalDOM.elementClose('p');".to_string(),
+                Tag::Heading(size) => format!("IncrementalDOM.elementClose('h{}');", size),
                 Tag::Table(_) => {
-                    "IncrementalDOM.elementClose('tbody');IncrementalDOM.elementClose('table');".to_string()
-                },
+                    "IncrementalDOM.elementClose('tbody');IncrementalDOM.elementClose('table');"
+                        .to_string()
+                }
                 Tag::TableHead => {
                     self.table_state = TableState::Body;
                     "IncrementalDOM.elementClose('tr');IncrementalDOM.elementClose('thead');IncrementalDOM.elementOpen('tbody',null,null);".to_string()
-
-                },
-                Tag::TableRow => {
-                    "IncrementalDOM.elementClose('tr');".to_string()
-                },
+                }
+                Tag::TableRow => "IncrementalDOM.elementClose('tr');".to_string(),
                 Tag::TableCell => {
                     self.table_cell_index += 1;
                     match self.table_state {
-                        TableState::Head => {
-                            "IncrementalDOM.elementClose('th');"
-                        }
-                        TableState::Body => {
-                            "IncrementalDOM.elementClose('td');"
-                        }
-                    }.to_string()
-                },
-                Tag::BlockQuote => {
-                    "IncrementalDOM.elementClose('blockquote');".to_string()
-                },
-                Tag::CodeBlock(_) => {
-                    "IncrementalDOM.elementClose('code');IncrementalDOM.elementClose('pre');".to_string()
-                },
-                Tag::List(Some(_)) => {
-                    "IncrementalDOM.elementClose('ol');".to_string()
-                },
-                Tag::List(None) => {
-                    "IncrementalDOM.elementClose('ul');".to_string()
-                },
-                Tag::Item => {
-                    "IncrementalDOM.elementClose('li');".to_string()
-                },
-                Tag::Emphasis => {
-                    "IncrementalDOM.elementClose('em');".to_string()
-                },
-                Tag::Strong => {
-                    "IncrementalDOM.elementClose('strong');".to_string()
-                },
-                Tag::Strikethrough => {
-                    "IncrementalDOM.elementClose('del');".to_string()
-                },
-                Tag::Link(_,_,_) => {
-                    "".to_string() // No links
-                },
-                Tag::Image(_,_,_) => {
-                    "".to_string() // handled in start
-                },
-                Tag::FootnoteDefinition(_) => {
-                    "IncrementalDOM.elementClose('div');".to_string()
+                        TableState::Head => "IncrementalDOM.elementClose('th');",
+                        TableState::Body => "IncrementalDOM.elementClose('td');",
+                    }
+                    .to_string()
                 }
+                Tag::BlockQuote => "IncrementalDOM.elementClose('blockquote');".to_string(),
+                Tag::CodeBlock(_) => {
+                    "IncrementalDOM.elementClose('code');IncrementalDOM.elementClose('pre');"
+                        .to_string()
+                }
+                Tag::List(Some(_)) => "IncrementalDOM.elementClose('ol');".to_string(),
+                Tag::List(None) => "IncrementalDOM.elementClose('ul');".to_string(),
+                Tag::Item => "IncrementalDOM.elementClose('li');".to_string(),
+                Tag::Emphasis => "IncrementalDOM.elementClose('em');".to_string(),
+                Tag::Strong => "IncrementalDOM.elementClose('strong');".to_string(),
+                Tag::Strikethrough => "IncrementalDOM.elementClose('del');".to_string(),
+                Tag::Link(_, _, _) => {
+                    "".to_string() // No links
+                }
+                Tag::Image(_, _, _) => {
+                    "".to_string() // handled in start
+                }
+                Tag::FootnoteDefinition(_) => "IncrementalDOM.elementClose('div');".to_string(),
             }
         }
         // run raw text, consuming end tag
         fn raw_text(&mut self) -> String {
-            let mut ret_text:String = "".to_string();
+            let mut ret_text: String = "".to_string();
             let mut nest = 0;
             while let Some(event) = self.iter.next() {
                 match event {
@@ -285,8 +265,8 @@ pub mod incremental_dom {
                         let number = *self.numbers.entry(name).or_insert(len);
                         ret_text.push_str(&format!("[{}]", number));
                     }
-                    Event::TaskListMarker(true) => { ret_text.push_str("[x]")}
-                    Event::TaskListMarker(false) => { ret_text.push_str("[ ]")}
+                    Event::TaskListMarker(true) => ret_text.push_str("[x]"),
+                    Event::TaskListMarker(false) => ret_text.push_str("[ ]"),
                 }
             }
             ret_text
