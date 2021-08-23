@@ -5,3 +5,6 @@ Call note-render from the command line with a markdown file and a window will op
 I use this for taking notes in my classes in markdown.
 
 It can also render latex (using KaTeX) if you put it within '$' tags (inline) or ```latex (multiline).
+
+# Screenshots
+![App Example](https://github.com/PfisterFactor/note-render/raw/master/appscreen.png)
