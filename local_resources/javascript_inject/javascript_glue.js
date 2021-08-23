@@ -81,8 +81,11 @@ function inline_math(content) {
     }
 }
 
-
 function on_ready() {
     external.invoke('ready');
+
+    document.body.addEventListener("click", (event) => {
+        external.invoke("open_file");
+    })
 }
 disable_hyperlinks();

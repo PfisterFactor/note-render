@@ -8,18 +8,23 @@ pub mod noterender {
     use crate::incremental_dom::incremental_dom::push_incremental_dom;
     use crate::markdown_handler::markdown_handler::MarkdownHandler;
     use crate::PROJECT_DIR;
+    use std::path::{Path, PathBuf};
+    use crate::filesystem_handler::filesystem_handler::FilesystemHandler;
 
     pub enum JavascriptEvent {
         NONE,
         READY,
-        TEST,
+        OPEN_FILE,
     }
 
     impl From<&str> for JavascriptEvent {
         fn from(arg: &str) -> Self {
+            // let split:Vec<&str> = arg.split("|").collect();
+            // let event = *split.first().unwrap();
+            // let data = *split.get(1).unwrap_or(&"");
             return match arg {
                 "ready" => JavascriptEvent::READY,
-                "test" => JavascriptEvent::TEST,
+                "open_file" => JavascriptEvent::OPEN_FILE,
                 _ => JavascriptEvent::NONE,
             };
         }
@@ -28,17 +33,19 @@ pub mod noterender {
         webview_handle: Option<Handle<JavascriptEvent>>,
         event_queue: Arc<Mutex<VecDeque<JavascriptEvent>>>,
         loaded_page: Arc<String>,
-        file_watcher: Hotwatch,
         markdownhandler: Arc<Mutex<MarkdownHandler>>,
+        filesystem_handler: Arc<Mutex<FilesystemHandler>>
     }
     impl NoteRender {
-        pub fn new() -> NoteRender {
+        pub fn new(watch_path: &Path) -> NoteRender {
+            let markdown_handler = Arc::new(Mutex::new(MarkdownHandler::new("")));
+            markdown_handler.lock().unwrap().load_markdown_from_file(watch_path);
             return NoteRender {
                 webview_handle: None,
                 event_queue: Arc::new(Mutex::new(VecDeque::new())),
                 loaded_page: Arc::new("".to_string()),
-                file_watcher: Hotwatch::new().expect("Couldn't instantiate file watcher"),
-                markdownhandler: Arc::new(Mutex::new(MarkdownHandler::new(""))),
+                filesystem_handler: Arc::new(Mutex::new(FilesystemHandler::new(watch_path, markdown_handler.clone()))),
+                markdownhandler: markdown_handler,
             };
         }
 
@@ -48,6 +55,9 @@ pub mod noterender {
         }
         pub fn get_markdown_handler(&self) -> Arc<Mutex<MarkdownHandler>> {
             self.markdownhandler.clone()
+        }
+        pub fn get_filesystem_handler(&self) -> Arc<Mutex<FilesystemHandler>> {
+            self.filesystem_handler.clone()
         }
 
         fn load_html_into_webview(&mut self) {
@@ -94,9 +104,19 @@ pub mod noterender {
                                 JavascriptEvent::READY => {
                                     println!("recieved the Ready event!");
                                     self.load_html_into_webview();
-                                }
-                                JavascriptEvent::TEST => {
-                                    println!("recieved the test event!");
+                                },
+                                JavascriptEvent::OPEN_FILE => {
+                                    println!("Received file_open");
+                                    let markdown_handler = self.get_markdown_handler();
+                                    let fs_handler = self.get_filesystem_handler();
+                                    self.webview_handle.as_ref().unwrap().dispatch(move |view| {
+                                        let path = view.dialog().open_file("Choose a .mdl file to open","");
+                                        if let Ok(Some(option_path)) = path {
+                                            markdown_handler.lock().unwrap().load_markdown_from_file(&option_path);
+                                            fs_handler.lock().unwrap().watch_new_file(&option_path);
+                                        }
+                                        Ok(())
+                                    });
                                 }
                                 _ => {
                                     // Unhandled event
@@ -163,7 +183,7 @@ pub mod noterender {
             }
         }
         return format!(
-            "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n{}\n</head>\n<body id=\"content\" class=\"markdown-body\" onload=\"on_ready()\">\n{}\n</body></html>",
+            "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n{}\n</head>\n<body id=\"content\" class=\"markdown-body\" onload=\"on_ready()\" ondragover=\"event.preventDefault();\" ondrop=\"on_drag_and_drop(event);\">\n{}\n</body></html>",
             inject_string, html
         );
     }

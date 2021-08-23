@@ -9,37 +9,21 @@ pub mod filesystem_handler {
     use std::time::Duration;
 
     pub struct FilesystemHandler {
-        watching_path: PathBuf,
+        watching_path: Arc<Mutex<PathBuf>>,
         hotwatch: Hotwatch,
         local_resource_server: Arc<Server>,
-        markdown_handler: Arc<Mutex<MarkdownHandler>>,
+        markdown_handler: Arc<Mutex<MarkdownHandler>>
     }
     impl FilesystemHandler {
-        pub fn new(
-            watch_path: PathBuf,
-            markdownhandle: Arc<Mutex<MarkdownHandler>>,
-        ) -> FilesystemHandler {
+        pub fn new(watch_path: &Path, markdown_handler: Arc<Mutex<MarkdownHandler>>) -> FilesystemHandler {
             let mut file_watcher = Hotwatch::new_with_custom_delay(Duration::new(0, 0))
                 .expect("Couldn't create file watcher");
-            let borrowed = markdownhandle.clone();
-            file_watcher.watch(&watch_path, move |event| {
-                match event {
-                    hotwatch::Event::Write(file) => {
-                        //dbg!("Write event received");
-                        if let Ok(string_contents) = fs::read_to_string(&file) {
-                            borrowed
-                                .lock()
-                                .expect("Couldn't get lock on markdown handler")
-                                .load_markdown(&string_contents);
-                        }
-                    }
-                    _ => {}
-                }
-            });
-            let file_path = watch_path.clone();
+            let file_path = Arc::new(Mutex::new(watch_path.to_path_buf()));
+            let file_path_ref = file_path.clone();
             let server = Server::new(move |request, mut response| {
                 println!("Request received for {:#?}", request.uri().path());
                 let request_path = Path::new(request.uri().path()).to_path_buf();
+                let file_path = file_path_ref.lock().unwrap();
                 let file_name = file_path.file_stem().unwrap();
                 if let Some(ext) = request_path.extension() {
                     let ext = ext.to_str().unwrap();
@@ -104,12 +88,34 @@ pub mod filesystem_handler {
                     Ok(response.body("<p>404</p>".as_bytes().to_vec())?)
                 }
             });
-            return FilesystemHandler {
-                watching_path: watch_path,
+            let mut fs_handler = FilesystemHandler {
+                watching_path: file_path,
                 hotwatch: file_watcher,
                 local_resource_server: Arc::new(server),
-                markdown_handler: markdownhandle,
+                markdown_handler
             };
+            fs_handler.watch_new_file(watch_path);
+            fs_handler
+        }
+        pub fn watch_new_file(&mut self, path: &Path) {
+            self.hotwatch
+                .unwatch(self.watching_path.lock().unwrap().to_path_buf());
+            *self.watching_path.lock().unwrap() = path.to_path_buf();
+            let borrowed = self.markdown_handler.clone();
+            self.hotwatch.watch(path, move |event| {
+                match event {
+                    hotwatch::Event::Write(file) => {
+                        //dbg!("Write event received");
+                        if let Ok(string_contents) = fs::read_to_string(&file) {
+                            borrowed
+                                .lock()
+                                .expect("Couldn't get lock on markdown handler")
+                                .load_markdown(&string_contents);
+                        }
+                    }
+                    _ => {}
+                }
+            });
         }
         pub fn spawn_resource_server(&self) {
             let server = self.local_resource_server.clone();
@@ -123,7 +129,7 @@ pub mod filesystem_handler {
             }
             let file_path = file_path.unwrap();
             if file_path.extension().is_none()
-                || file_path.extension().unwrap() != "mdl"
+                || (file_path.extension().unwrap() != "mdl" && file_path.extension().unwrap() != "md")
                 || !file_path.exists()
             {
                 return false;

@@ -1,9 +1,12 @@
 
 pub mod markdown_handler {
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
 
     use pulldown_cmark::*;
     use regex::Regex;
+    use crate::filesystem_handler::filesystem_handler::FilesystemHandler;
+    use std::error::Error;
+    use std::fs;
 
     pub const MARKER_CHARACTER: char = '⁂';
     lazy_static! {
@@ -19,6 +22,15 @@ pub mod markdown_handler {
                 markdown_string: MarkdownHandler::transform_input(input),
                 do_refresh: true,
             }
+        }
+        pub fn load_markdown_from_file(&mut self, input: &Path) -> Result<(),std::io::Error> {
+            if !FilesystemHandler::verify_file_argument(Some(input.to_path_buf())) {
+                eprintln!("Please pass a valid .mdl file path as an argument");
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidInput,"File not valid or not .mdl"));
+            }
+            let file = fs::read_to_string(&input)?;
+            self.load_markdown(&file);
+            return Ok(());
         }
         pub fn load_markdown(&mut self, input: &str) {
             self.markdown_string = MarkdownHandler::transform_input(input);
