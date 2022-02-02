@@ -1,4 +1,3 @@
-#![feature(str_strip)]
 extern crate hotwatch;
 extern crate include_dir;
 #[macro_use]
